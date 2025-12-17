@@ -69,7 +69,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: "hello_action_${{ matrix.os }}"
-        path: ./target/${{ matrix.target }}/release/hello_action
+        path: ./target/${{ matrix.target }}/release
 
     # 8. 清理缓存（可选）
     - name: Cleanup old caches
@@ -99,7 +99,7 @@ jobs:
   # 交叉编译检查（可选）
   cross-compile:
     runs-on: ubuntu-latest
-    needs: build
+    # needs: build
     
     steps:
     - uses: actions/checkout@v4
@@ -121,3 +121,9 @@ jobs:
         rustup target add aarch64-unknown-linux-gnu
         cargo check --target aarch64-unknown-linux-gnu
         cargo build --target aarch64-unknown-linux-gnu --release
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: "hello_action_${{ matrix.os }}"
+        path: ./target/aarch64-unknown-linux-gnu/release
