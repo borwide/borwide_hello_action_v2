@@ -65,6 +65,12 @@ jobs:
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       run: cargo build --release --verbose
     
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: "hello_action_${{ matrix.arch }}"
+        path: ./target/${{ matrix.target }}/release/hello_action
+
     # 8. 清理缓存（可选）
     - name: Cleanup old caches
       if: github.event_name == 'schedule'
@@ -109,3 +115,4 @@ jobs:
       run: |
         rustup target add aarch64-unknown-linux-musl
         cargo check --target aarch64-unknown-linux-musl
+        cargo build --target aarch64-unknown-linux-musl --release
