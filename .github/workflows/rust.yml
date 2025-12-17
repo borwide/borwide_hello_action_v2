@@ -68,7 +68,7 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: "hello_action_${{ matrix.arch }}"
+        name: "hello_action_${{ matrix.os }}"
         path: ./target/${{ matrix.target }}/release/hello_action
 
     # 8. 清理缓存（可选）
