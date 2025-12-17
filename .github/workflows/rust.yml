@@ -31,7 +31,7 @@ jobs:
       uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
         toolchain: ${{ matrix.rust }}
-        target: aarch64-unknown-linux-musl  # 如果不需要可以删除
+        target: aarch64-unknown-linux-gnu  # 如果不需要可以删除
         cache: true
         cache-key: cargo-cache-${{ matrix.os }}-${{ matrix.rust }}
     
@@ -113,6 +113,6 @@ jobs:
     
     - name: Cross-compile check
       run: |
-        rustup target add aarch64-unknown-linux-musl
-        cargo check --target aarch64-unknown-linux-musl
-        cargo build --target aarch64-unknown-linux-musl --release
+        rustup target add aarch64-unknown-linux-gnu
+        cargo check --target aarch64-unknown-linux-gnu
+        cargo build --target aarch64-unknown-linux-gnu --release
