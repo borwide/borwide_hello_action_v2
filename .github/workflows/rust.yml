@@ -1,0 +1,111 @@
+name: Rust CI with Advanced Caching
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # 每周清理一次缓存
+    - cron: '0 0 * * 0'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest,windows-lastest]
+        rust: [stable]
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    # 1. 设置 Rust 工具链（带缓存）
+    - name: Setup Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        target: aarch64-unknown-linux-musl  # 如果不需要可以删除
+        cache: true
+        cache-key: cargo-cache-${{ matrix.os }}-${{ matrix.rust }}
+    
+    # 2. 分层缓存：Cargo registry 和 git dependencies（变化较少）
+    - name: Cache Cargo registry
+      uses: actions/cache@v4
+      id: cache-registry
+      with:
+        path: |
+          ~/.cargo/registry/
+          ~/.cargo/git/db/
+        key: ${{ matrix.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+    
+    # 3. 缓存构建输出（针对不同工具链）
+    - name: Cache build artifacts
+      uses: actions/cache@v4
+      id: cache-target
+      with:
+        path: |
+          target/
+        key: ${{ matrix.os }}-cargo-target-${{ matrix.rust }}-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}
+        restore-keys: |
+          ${{ matrix.os }}-cargo-target-${{ matrix.rust }}-
+          ${{ matrix.os }}-cargo-target-
+    
+    # 4. 构建项目（release 和 debug 版本）
+    - name: Build (debug)
+      run: cargo build --verbose
+    
+    - name: Build (release)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: cargo build --release --verbose
+    
+    # 8. 清理缓存（可选）
+    - name: Cleanup old caches
+      if: github.event_name == 'schedule'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const caches = await github.rest.actions.getActionsCacheList({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          });
+          
+          // 删除超过 7 天的缓存
+          const oneWeekAgo = new Date();
+          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+          
+          for (const cache of caches.data.actions_caches) {
+            if (new Date(cache.created_at) < oneWeekAgo) {
+              await github.rest.actions.deleteActionsCacheById({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                cache_id: cache.id,
+              });
+            }
+          }
+
+  # 交叉编译检查（可选）
+  cross-compile:
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+      with:
+        toolchain: stable
+        cache: true
+        targets: aarch64-unknown-linux-musl,wasm32-unknown-unknown
+    
+    - name: Cross-compile check
+      run: |
+        rustup target add aarch64-unknown-linux-musl
+        cargo check --target aarch64-unknown-linux-musl
